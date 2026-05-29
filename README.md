@@ -18,6 +18,7 @@ please cite:
   journal={Available at SSRN 6080666},
   year={2026}
 }
+
 Thank you very much!
 
 ![Logo](./graph_abstract.png)
