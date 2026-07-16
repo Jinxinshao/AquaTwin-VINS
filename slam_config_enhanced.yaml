@@ -1,0 +1,238 @@
+# ============================================================================
+# PiSLAM Enhanced Configuration
+# 增强版SLAM系统配置文件
+# ============================================================================
+# 针对无惯导条件下的单目视觉SLAM优化
+# Author: Academic SLAM Implementation
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# 相机内参 (CAMERA INTRINSICS)
+# -----------------------------------------------------------------------------
+# 必须通过标定获取准确值！默认值仅供测试
+# 推荐使用 OpenCV 标定工具 + 棋盘格进行精确标定
+# -----------------------------------------------------------------------------
+camera:
+  fx: 500.0   # 1000 / 2
+  fy: 500.0   # 1000 / 2
+  cx: 320.0   # 640 / 2
+  cy: 240.0   # 480 / 2
+  
+  # 畸变系数 (Brown-Conrady模型)
+  k1: 0.0
+  k2: 0.0
+  p1: 0.0
+  p2: 0.0
+  k3: 0.0
+  
+  # 图像尺寸
+  width: 640
+  height: 480
+  fps: 10
+  
+  # 深度范围 (米)
+  depth_min: 0.2   # 近处阈值：太近的深度不可靠
+  depth_max: 5.0   # 远处阈值：超出此范围的深度噪声大
+  
+  # 深度网络输出转换参数
+  depth_scale: 10.0
+  depth_epsilon: 1e-5
+
+# -----------------------------------------------------------------------------
+# 增强版特征提取 (ENHANCED FEATURE EXTRACTION)
+# -----------------------------------------------------------------------------
+# 网格化ORB特征提取器配置
+# 核心改进：保证特征均匀分布 + 自适应阈值 + 亚像素精化
+# -----------------------------------------------------------------------------
+features_enhanced:
+  # 总特征数目标 (根据计算能力调整)
+  # 推荐值：嵌入式设备 800-1200，PC 1500-2000
+  n_features: 1500
+  
+  # 网格划分
+  # 6x8 = 48个网格，每个网格约25-31个特征
+  grid_rows: 6
+  grid_cols: 8
+  
+  # 每个网格的特征数限制
+  min_features_per_cell: 5    # 最少保证每个网格有特征
+  max_features_per_cell: 50   # 防止过度聚集
+  
+  # FAST检测器参数
+  fast_threshold: 20          # 默认阈值
+  fast_threshold_min: 5       # 低纹理区域最小阈值
+  fast_threshold_adaptive: true  # 启用自适应阈值
+  
+  # 亚像素精化
+  # 可将定位精度从整数像素提升到0.05-0.1像素
+  subpixel_refinement: true
+  
+  # ORB描述子参数
+  scale_factor: 1.2
+  n_levels: 8
+  edge_threshold: 31
+  patch_size: 31
+
+# -----------------------------------------------------------------------------
+# 增强版特征匹配 (ENHANCED FEATURE MATCHING)
+# -----------------------------------------------------------------------------
+# 多策略融合匹配：光流辅助 + 描述子匹配 + 多重验证
+# -----------------------------------------------------------------------------
+matching_enhanced:
+  # 描述子匹配
+  ratio_threshold: 0.70       # Lowe's ratio (更严格=更少假匹配)
+  max_distance: 40            # 最大Hamming距离 (ORB描述子)
+  cross_check: true           # 交叉验证
+  
+  # 光流辅助匹配
+  # 原理：利用帧间时序连续性预测特征位置
+  optical_flow: true
+  flow_search_radius: 30      # 光流预测后的局部搜索半径(像素)
+  lk_win_size: 21             # Lucas-Kanade窗口大小
+  lk_max_level: 3             # 金字塔层数
+  
+  # 深度一致性约束
+  # 原理：正确匹配的特征点深度变化应该平滑
+  depth_check: true
+  depth_consistency_threshold: 0.10  # 相对深度误差阈值 (15%)
+  max_3d_distance: 0.2        # 3D点最大位移 (米) - 基于帧率调整
+  
+  # 几何验证
+  ransac_reproj_threshold: 2.0  # 重投影误差阈值(像素)
+  ransac_confidence: 0.999
+  min_inliers: 15
+
+# -----------------------------------------------------------------------------
+# 视觉里程计 (VISUAL ODOMETRY)
+# -----------------------------------------------------------------------------
+odometry:
+  # PnP求解器配置
+  pnp_method: "SOLVEPNP_EPNP"
+  ransac_iterations: 1000
+  ransac_reprojection_error: 2.5  # 比默认更严格
+  ransac_confidence: 0.999
+  
+  # 质量阈值
+  min_features: 30            # 最少特征数
+  min_inliers: 15             # 最少内点数
+  min_inlier_ratio: 0.3       # 最低内点比例
+  
+  # 运动模型 (恒速假设)
+  use_motion_model: true
+  motion_model_decay: 0.9     # 速度衰减系数
+  
+  # ICP精化 (可选，计算量大)
+  # 建议：惯导到了之后再开启，与IMU融合
+  use_icp_refinement: false
+  icp_max_correspondence_distance: 0.1
+  icp_max_iterations: 50
+  
+  # 点云降采样
+  voxel_size: 0.02
+
+# -----------------------------------------------------------------------------
+# 深度校正 (DEPTH CORRECTION - Teacher-Student)
+# -----------------------------------------------------------------------------
+# 使用Depth Anything V2作为"教官"校正scDepth的尺度
+# -----------------------------------------------------------------------------
+depth_correction:
+  enabled: true
+  teacher_model: "depth_anything_v2_vits.onnx"
+  correction_interval: 3.0    # 校正周期(秒)
+  ema_alpha: 0.3              # 指数移动平均系数
+  scale_clip_min: 0.5
+  scale_clip_max: 2.0
+
+# -----------------------------------------------------------------------------
+# 关键帧选择 (KEYFRAME SELECTION)
+# -----------------------------------------------------------------------------
+keyframe:
+  min_time_interval: 0.5      # 最小时间间隔(秒) - 降低以获取更密集关键帧
+  min_translation: 0.15       # 最小平移(米) - 降低以增加关键帧密度
+  min_rotation: 0.10         # 最小旋转(弧度)
+  min_covisibility: 0.6       # 最小共视比例
+  min_tracked_features: 30
+
+# -----------------------------------------------------------------------------
+# 回环检测 (LOOP CLOSURE)
+# -----------------------------------------------------------------------------
+loop_closure:
+  enabled: true
+  min_keyframe_gap: 10
+  search_radius: 2.0
+  bow_similarity_threshold: 0.3
+  min_inliers: 20
+  ransac_iterations: 500
+  icp_fitness_threshold: 0.5
+  icp_rmse_threshold: 0.05
+  vocabulary_size: 1000
+  vocabulary_depth: 6
+
+# -----------------------------------------------------------------------------
+# 位姿图优化 (POSE GRAPH OPTIMIZATION)
+# -----------------------------------------------------------------------------
+optimization:
+  optimize_every_n_keyframes: 5
+  max_iterations: 100
+  edge_prune_threshold: 0.25
+  loop_closure_weight: 1.0
+  odometry_weight: 1.0
+  use_robust_kernel: true
+  huber_delta: 1.0
+
+# -----------------------------------------------------------------------------
+# 点云滤波 (POINT CLOUD FILTERING)
+# -----------------------------------------------------------------------------
+filtering:
+  # 统计离群点移除
+  sor_neighbors: 30
+  sor_std_ratio: 1.5
+  
+  # 半径离群点移除
+  ror_radius: 0.1
+  ror_min_neighbors: 5
+
+# -----------------------------------------------------------------------------
+# 输出设置 (OUTPUT SETTINGS)
+# -----------------------------------------------------------------------------
+output:
+  save_directory: "~/UW_pislam_output"
+  save_trajectory: true
+  save_pointcloud: true
+  save_keyframes: true
+  save_graph: true
+  visualization: true
+
+# 在文件末尾添加
+
+# 贝叶斯尺度融合配置
+scale_fusion:
+  method: "bayesian"
+  initial_variance: 0.1
+  process_noise: 0.001
+
+# 局部 BA 配置
+local_ba:
+  enabled: true
+  window_size: 10
+  trigger_interval: 5
+  fix_scale: true # 单目SLAM通常需要固定尺度，防止BA把轨迹缩放得乱七八糟
+
+# ============================================================================
+# IMU 紧耦合参数 (IMU TIGHT COUPLING)
+# ============================================================================
+imu:
+  frequency: 200.0       # IMU 频率 (Hz)
+  # 加速度计噪声 (米/秒^2 / sqrt(Hz))
+  accel_noise_density: 2.0e-3  
+  # 陀螺仪噪声 (弧度/秒 / sqrt(Hz))
+  gyro_noise_density: 1.7e-4   
+  # 加速度计零偏随机游走 (Bias Random Walk)
+  accel_bias_random_walk: 3.0e-3
+  # 陀螺仪零偏随机游走
+  gyro_bias_random_walk: 2.0e-5
+  # 重力加速度
+  gravity: 9.81
+  # 外参 (T_body_from_imu): 如果IMU和相机安装方向一致，设为单位阵
+  extrinsic_rot: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  extrinsic_trans: [0.0, 0.0, 0.0]
