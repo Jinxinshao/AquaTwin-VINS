@@ -1,7 +1,9 @@
-Optimal perception under triple constraints: A real-time edge-based visual–inertial navigation and digital twinning interface for underwater exploration
+# Optimal perception under triple constraints: A real-time edge-based visual–inertial navigation and digital twinning interface for underwater exploration
 
 Code is here: [https://drive.google.com/file/d/1_X24e4DvmfANoFOpf0PYYxd_Ldknx-Py/view](https://drive.google.com/file/d/1_X24e4DvmfANoFOpf0PYYxd_Ldknx-Py/view?usp=drive_link)
+
 Dataset is here: [https://drive.google.com/file/d/1DQL1M5odR1Rb7ZTxs9L6LqAKBgI8IAIu/view?usp=drive_link](https://drive.google.com/file/d/1DQL1M5odR1Rb7ZTxs9L6LqAKBgI8IAIu/view?usp=drive_link)
+
 please cite: 
 
 SHAO J, MIAO J, ZHANG H. Optimal perception under triple constraints: A real-time edge-based visual–inertial navigation and digital twinning interface for underwater exploration[J/OL]. Robotics and Autonomous Systems, 2026, 205: 105621[2026-07-15]. https://doi.org/10.1016/j.robot.2026.105621.
